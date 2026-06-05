@@ -1,0 +1,898 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>MetaNex AI - Institutional Trading Terminal</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        :root {
+            --space-black: #050506;
+            --card-matte: #0e0e12;
+            --panel-border: #181922;
+            --text-pure: #ffffff;
+            --text-slate: #848694;
+            
+            --neon-blue: #0076ff;
+            --neon-blue-glow: rgba(0, 118, 255, 0.25);
+            --neon-green: #00e676;
+            --neon-green-glow: rgba(0, 230, 118, 0.2);
+            --neon-red: #ff3b30;
+            --neon-red-glow: rgba(255, 59, 48, 0.2);
+            --neon-amber: #ff9f0a;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0; padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", sans-serif;
+            user-select: none;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* Responsive Cross-Platform Container Config */
+        body {
+            background-color: #0b0c10;
+            color: var(--text-pure);
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+        }
+
+        .app-container-shell {
+            width: 100%;
+            height: 100%;
+            background-color: var(--space-black);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            position: relative;
+        }
+
+        @media (min-width: 768px) {
+            .app-container-shell {
+                width: 440px;
+                height: 880px;
+                border-radius: 32px;
+                border: 6px solid #282a36;
+                box-shadow: 0 24px 70px rgba(0,0,0,0.8);
+            }
+        }
+
+        /* Institutional Application Header */
+        .metanex-header {
+            background-color: var(--card-matte);
+            height: 60px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 14px;
+            border-bottom: 1px solid var(--panel-border);
+            flex-shrink: 0;
+        }
+
+        .header-left { display: flex; align-items: center; gap: 12px; }
+        .brand-block { display: flex; flex-direction: column; }
+        .brand-title { font-size: 14px; font-weight: 800; letter-spacing: 0.5px; }
+        .brand-suffix { color: var(--neon-blue); }
+        .server-status { font-size: 8px; color: var(--text-slate); font-weight: 600; display: flex; align-items: center; gap: 4px; margin-top: 1px; }
+        .pulse-dot { width: 5px; height: 5px; background-color: var(--neon-green); border-radius: 50%; box-shadow: 0 0 6px var(--neon-green); animation: beacon 1.8s infinite ease-in-out; }
+        .header-right { display: flex; align-items: center; gap: 8px; }
+
+        .broker-selector-wrapper {
+            display: flex;
+            align-items: center;
+            background-color: #14151f;
+            border: 1px solid var(--panel-border);
+            border-radius: 6px;
+            padding: 4px 6px;
+            gap: 4px;
+        }
+        .broker-icon { color: var(--neon-blue); font-size: 10px; }
+        .premium-broker-dropdown {
+            background: transparent;
+            border: none;
+            color: var(--text-pure);
+            font-size: 10px;
+            font-weight: 700;
+            outline: none;
+            cursor: pointer;
+        }
+
+        .institutional-badge {
+            background-color: rgba(255,159,10,0.08);
+            border: 1px solid rgba(255,159,10,0.25);
+            color: var(--neon-amber);
+            font-size: 8px;
+            font-weight: 700;
+            padding: 3px 6px;
+            border-radius: 4px;
+        }
+
+        /* Main Screen Views Routing Matrix */
+        .terminal-body { flex: 1; position: relative; overflow: hidden; }
+        .panel-view { display: none; height: 100%; width: 100%; position: absolute; top: 0; left: 0; flex-direction: column; }
+        .panel-view.active { display: flex; animation: panelIn 0.2s ease-out; }
+
+        /* Quotes Module Frame style layout */
+        .asset-grid-header { background-color: rgba(255,255,255,0.01); display: flex; justify-content: space-between; padding: 8px 14px; font-size: 11px; font-weight: 600; color: var(--text-slate); text-transform: uppercase; border-bottom: 1px solid var(--panel-border); }
+        .quotes-scrollway { flex: 1; overflow-y: auto; }
+        .quote-panel-row { display: flex; justify-content: space-between; align-items: center; padding: 12px 14px; border-bottom: 1px solid var(--panel-border); cursor: pointer; }
+        .quote-panel-row:active { background-color: rgba(255,255,255,0.03); }
+        .ticker-identity h4 { font-size: 14px; font-weight: 700; }
+        .ticker-identity .time-tag { font-size: 10px; color: var(--text-slate); margin-top: 2px; }
+        .market-price-wells { display: flex; gap: 12px; }
+        .price-well-block { min-width: 76px; text-align: right; }
+        .price-well-block .well-lbl { font-size: 9px; color: var(--text-slate); text-transform: uppercase; }
+        .price-well-value { font-size: 14px; font-weight: 700; font-family: monospace; }
+        .price-well-value.climbing { color: var(--neon-green); }
+        .price-well-value.falling { color: var(--neon-red); }
+
+        /* Chart Interactivity Elements Layout */
+        .chart-telemetry-bar { background-color: var(--card-matte); padding: 8px 14px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--panel-border); }
+        .inline-pair-dropdown { background-color: #14151f; border: 1px solid var(--panel-border); color: var(--text-pure); font-size: 14px; font-weight: 700; padding: 3px 6px; border-radius: 4px; outline: none; }
+        .timeframe-tag { font-size: 9px; color: var(--text-slate); font-weight: 700; margin-left: 4px; background-color: rgba(255,255,255,0.05); padding: 3px 5px; border-radius: 3px; }
+        .ai-overlay-status { font-size: 10px; color: var(--neon-blue); font-weight: 600; background-color: var(--neon-blue-glow); padding: 3px 8px; border-radius: 15px; border: 1px solid rgba(0,118,255,0.25); }
+
+        .chart-workspace-wrapper { display: flex; flex: 1; overflow: hidden; }
+
+        /* THE UPGRADED SIDE-SCREEN CHARACTER TOOLBAR DESIGN */
+        .chart-side-toolbar {
+            width: 44px;
+            background-color: var(--card-matte);
+            border-right: 1px solid var(--panel-border);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 10px 0;
+            gap: 10px;
+            flex-shrink: 0;
+        }
+
+        .tool-btn {
+            width: 28px;
+            height: 28px;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-slate);
+            font-size: 12px;
+            cursor: pointer;
+            position: relative;
+            transition: all 0.15s;
+        }
+        .tool-btn:hover { color: var(--text-pure); background-color: rgba(255,255,255,0.03); }
+        .tool-btn.active { color: var(--neon-blue); background-color: var(--neon-blue-glow); border: 1px solid rgba(0,118,255,0.15); }
+        .tool-divider { width: 16px; height: 1px; background-color: var(--panel-border); margin: 2px 0; }
+        .tool-indicator-dot { position: absolute; bottom: 3px; right: 3px; width: 4px; height: 4px; background-color: var(--neon-green); border-radius: 50%; box-shadow: 0 0 4px var(--neon-green); }
+
+        .canvas-container { flex: 1; position: relative; background-color: var(--space-black); overflow: hidden; }
+        #primaryTradingChart { width: 100%; height: 100%; display: block; }
+        .chart-floating-stats { position: absolute; top: 10px; left: 10px; background-color: rgba(14,14,18,0.9); border: 1px solid var(--panel-border); padding: 6px 10px; border-radius: 6px; font-size: 10px; display: flex; flex-direction: column; gap: 2px; pointer-events: none; }
+
+        /* Ledger Systems UI */
+        .institutional-ledger { background: linear-gradient(180deg, var(--card-matte) 0%, #111116 100%); padding: 14px; border-bottom: 1px solid var(--panel-border); }
+        .ledger-row.principal { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+        .ledger-row.principal span { font-size: 14px; font-weight: 600; color: var(--text-slate); }
+        .ledger-row.principal .amount-field { font-size: 21px; font-weight: 800; color: var(--text-pure); }
+        .ledger-divider { height: 1px; background-color: var(--panel-border); margin-bottom: 10px; }
+        .ledger-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 16px; }
+        .ledger-item { display: flex; flex-direction: column; }
+        .ledger-item .label { font-size: 10px; color: var(--text-slate); }
+        .ledger-item .val { font-size: 14px; font-weight: 700; }
+
+        .dynamic-pnl.Bullish { color: var(--neon-green); }
+        .dynamic-pnl.Bearish { color: var(--neon-red); }
+        .dynamic-pnl.Neutral { color: var(--text-pure); }
+        .active-positions-title-strip { background-color: #0b0b0e; padding: 6px 14px; font-size: 10px; color: var(--text-slate); font-weight: 700; border-bottom: 1px solid var(--panel-border); }
+        .positions-scrollway { flex: 1; overflow-y: auto; }
+        .contract-position-card { display: flex; justify-content: space-between; padding: 12px 14px; border-bottom: 1px solid var(--panel-border); cursor: pointer; }
+        .direction-tag.buy { color: var(--neon-blue); font-weight: 700; }
+        .direction-tag.sell { color: var(--neon-red); font-weight: 700; }
+        .float-pnl { font-weight: 800; font-size: 14px; }
+        .float-pnl.profit { color: var(--neon-green); }
+        .float-pnl.loss { color: var(--neon-red); }
+
+        /* History Elements */
+        .history-sub-navigation { display: flex; background-color: var(--card-matte); border-bottom: 1px solid var(--panel-border); }
+        .sub-tab-item { flex: 1; text-align: center; padding: 12px 0; font-size: 11px; font-weight: 700; color: var(--text-slate); cursor: pointer; }
+        .sub-tab-item.active { color: var(--neon-blue); border-bottom: 2px solid var(--neon-blue); }
+        .terminal-empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 60px 24px; color: var(--text-slate); text-align: center; }
+        .terminal-empty-state i { font-size: 32px; margin-bottom: 10px; opacity: 0.15; }
+
+        /* Dedicated Bot Control Module Matrix Dashboard Layout */
+        .ai-system-hardware-card { background: linear-gradient(135deg, #111118 0%, var(--card-matte) 100%); padding: 14px; border-bottom: 1px solid var(--panel-border); display: flex; justify-content: space-between; align-items: center; }
+        .hardware-meta { display: flex; align-items: center; gap: 10px; }
+        .ai-avatar-glow { width: 36px; height: 36px; background-color: var(--neon-blue-glow); border-radius: 8px; display: flex; align-items: center; justify-content: center; color: var(--neon-blue); font-size: 16px; border: 1px solid rgba(0,118,255,0.2); box-shadow: 0 0 10px var(--neon-blue-glow); }
+        .hardware-meta h3 { font-size: 13px; font-weight: 700; }
+        .hardware-meta .hardware-desc { font-size: 10px; color: var(--text-slate); }
+
+        .premium-switch { position: relative; width: 44px; height: 24px; display: block; }
+        .premium-switch input { opacity: 0; width: 0; height: 0; }
+        .switch-slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #24242e; transition: 0.25s; border-radius: 20px; }
+        .switch-slider:before { position: absolute; content: ""; height: 18px; width: 18px; left: 3px; bottom: 3px; background-color: var(--text-pure); transition: 0.25s; border-radius: 50%; }
+        input:checked + .switch-slider { background-color: var(--neon-green); }
+        input:checked + .switch-slider:before { transform: translateX(20px); }
+        .master-toggle-wrapper { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+        .toggle-caption { font-size: 8px; font-weight: 700; color: var(--text-slate); }
+
+        .protection-matrix { display: flex; gap: 8px; padding: 10px 14px; border-bottom: 1px solid var(--panel-border); }
+        .protection-badge { flex: 1; font-size: 10px; font-weight: 600; padding: 5px 8px; border-radius: 6px; display: flex; align-items: center; gap: 4px; }
+        .protection-badge.secure { background-color: rgba(0,230,118,0.05); color: var(--neon-green); border: 1px solid rgba(0,230,118,0.12); }
+        .protection-badge.processing { background-color: var(--neon-blue-glow); color: var(--neon-blue); border: 1px solid rgba(0,118,255,0.12); }
+
+        .ai-console-logway { flex: 1; padding: 14px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; background-color: #030304; }
+        .console-line { font-size: 12px; line-height: 1.4; padding: 8px 12px; border-radius: 8px; max-width: 85%; }
+        .console-line.system { background-color: var(--card-matte); color: var(--text-pure); align-self: flex-start; border-left: 2px solid var(--neon-blue); }
+        .console-line.user { background-color: var(--neon-blue); color: var(--text-pure); align-self: flex-end; }
+        .console-line.alert { background-color: rgba(255,59,48,0.06); color: #ff6b6b; align-self: flex-start; border-left: 2px solid var(--neon-red); }
+        .console-line.win { background-color: rgba(0,230,118,0.06); color: #5effa3; align-self: flex-start; border-left: 2px solid var(--neon-green); }
+        .console-line .timestamp { font-family: monospace; font-size: 10px; color: var(--text-slate); }
+
+        .ai-interaction-dock { padding: 10px 14px; background-color: var(--card-matte); display: flex; gap: 8px; border-top: 1px solid var(--panel-border); flex-shrink: 0; }
+        .ai-interaction-dock input { flex: 1; background-color: var(--space-black); border: 1px solid var(--panel-border); border-radius: 6px; padding: 10px 12px; color: var(--text-pure); font-size: 12px; }
+        .ai-interaction-dock button { background-color: var(--neon-blue); border: none; border-radius: 6px; width: 40px; color: var(--text-pure); font-size: 13px; }
+
+        /* Unified Fixed App Bottom Navigation Bar Strip */
+        .metanex-nav-bar { background-color: var(--card-matte); height: 60px; display: flex; border-top: 1px solid var(--panel-border); flex-shrink: 0; padding-bottom: env(safe-area-inset-bottom); }
+        .nav-button { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; color: var(--text-slate); cursor: pointer; }
+        .nav-button i { font-size: 16px; }
+        .nav-button span { font-size: 9px; font-weight: 600; }
+        .nav-button.active { color: var(--neon-blue); }
+        .special-ai-glow { color: rgba(255,255,255,0.4); }
+
+        @keyframes beacon { 0%, 100% { opacity: 0.5; transform: scale(1); } 50% { opacity: 1; transform: scale(1.1); } }
+        @keyframes panelIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
+</head>
+<body>
+
+    <div class="app-container-shell">
+
+        <header class="metanex-header">
+            <div class="header-left">
+                <i class="fa-solid fa-bars side-menu-trigger"></i>
+                <div class="brand-block">
+                    <span class="brand-title">METANEX <span class="brand-suffix">AI</span></span>
+                    <span class="server-status"><span class="pulse-dot"></span>CLOUD ENGINE NODE #047</span>
+                </div>
+            </div>
+            <div class="header-right">
+                <div class="broker-selector-wrapper">
+                    <i class="fa-solid fa-building-columns broker-icon"></i>
+                    <select id="broker-matrix-selector" class="premium-broker-dropdown">
+                        <option value="exness">EXNESS (PRO)</option>
+                        <option value="xm">XM GLOBAL (ECN)</option>
+                        <option value="fbs">FBS MARKETS</option>
+                    </select>
+                </div>
+                <div class="institutional-badge">FIPS SECURE</div>
+            </div>
+        </header>
+
+        <div class="terminal-body">
+            
+            <section id="quotes-view" class="panel-view active">
+                <div class="asset-grid-header">
+                    <span>Financial Instrument</span>
+                    <span>Market Execution Matrix</span>
+                </div>
+                <div class="quotes-scrollway" id="quotes-injection-point"></div>
+            </section>
+
+            <section id="charts-view" class="panel-view">
+                <div class="chart-telemetry-bar">
+                    <div class="pair-info">
+                        <select id="chart-pair-self-selector" class="inline-pair-dropdown"></select>
+                        <span class="timeframe-tag">M5 (LIVE STREAM)</span>
+                    </div>
+                    <div class="ai-overlay-status" id="ai-pattern-readout">
+                        <i class="fa-solid fa-microchip"></i> Scanning Neural Vectors...
+                    </div>
+                </div>
+                
+                <div class="chart-workspace-wrapper">
+                    <aside class="chart-side-toolbar">
+                        <div class="tool-btn active" title="Crosshair Cursor"><i class="fa-solid fa-crosshairs"></i></div>
+                        <div class="tool-btn" title="Trendline Vector Geometric Object"><i class="fa-solid fa-slash"></i></div>
+                        <div class="tool-btn" title="Fibonacci Retracement Grid"><i class="fa-solid fa-bars-staggered"></i></div>
+                        <div class="tool-btn" title="Horizontal Support/Resistance Lines"><i class="fa-solid fa-grip-lines"></i></div>
+                        <div class="tool-btn text-tool" title="Chart Label Annotation Text Field"><i class="fa-solid fa-font"></i></div>
+                        <div class="tool-divider"></div>
+                        <div class="tool-btn pattern-toggle active" id="toggle-neural-patterns" title="Toggle AI Pattern Overlays">
+                            <i class="fa-solid fa-wand-magic-sparkles"></i>
+                            <span class="tool-indicator-dot"></span>
+                        </div>
+                        <div class="tool-btn" title="Indicator Properties Matrix Options"><i class="fa-solid fa-sliders"></i></div>
+                    </aside>
+
+                    <div class="canvas-container" id="canvas-resize-parent">
+                        <canvas id="primaryTradingChart"></canvas>
+                        <div class="chart-floating-stats">
+                            <div>Spread: <span id="chart-floating-spread" style="color:var(--neon-blue);">--</span></div>
+                            <div>ATR (14): <span id="chart-floating-atr" style="color:var(--neon-amber);">0.0014</span></div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section id="trade-view" class="panel-view">
+                <div class="institutional-ledger">
+                    <div class="ledger-row principal">
+                        <span>Balance</span>
+                        <span class="amount-field" id="ledger-balance">$100,000.00</span>
+                    </div>
+                    <div class="ledger-divider"></div>
+                    <div class="ledger-grid">
+                        <div class="ledger-item">
+                            <span class="label">Equity</span>
+                            <span class="val metric-climb" id="ledger-equity">$100,000.00</span>
+                        </div>
+                        <div class="ledger-item">
+                            <span class="label">Free Margin</span>
+                            <span class="val" id="ledger-margin">$100,000.00</span>
+                        </div>
+                        <div class="ledger-item">
+                            <span class="label">Margin Level (%)</span>
+                            <span class="val" id="ledger-margin-level">100.00%</span>
+                        </div>
+                        <div class="ledger-item">
+                            <span class="label">Floating P&L</span>
+                            <span class="val dynamic-pnl Neutral" id="ledger-floating-pnl">+$0.00</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="active-positions-title-strip">ACTIVE RUNNING EXECUTIONS</div>
+                <div class="positions-scrollway" id="positions-injection-point"></div>
+            </section>
+
+            <section id="history-view" class="panel-view">
+                <div class="history-sub-navigation">
+                    <div class="sub-tab-item active">POSITIONS</div>
+                    <div class="sub-tab-item">ORDERS</div>
+                    <div class="sub-tab-item">DEALS</div>
+                </div>
+                <div class="history-scrollway" id="history-injection-point">
+                    <div class="terminal-empty-state">
+                        <i class="fa-solid fa-folder-open"></i>
+                        <p>No settled balances within current session.</p>
+                    </div>
+                </div>
+            </section>
+
+            <section id="ai-view" class="panel-view">
+                <div class="ai-system-hardware-card">
+                    <div class="hardware-meta">
+                        <div class="ai-avatar-glow"><i class="fa-solid fa-brain-circuit"></i></div>
+                        <div>
+                            <h3>Autonomous Cloud Neural Core</h3>
+                            <p class="hardware-desc">Multi-Pair Execution Engine. Risk Isolated.</p>
+                        </div>
+                    </div>
+                    <div class="master-toggle-wrapper">
+                        <label class="premium-switch">
+                            <input type="checkbox" id="ai-master-toggle" checked>
+                            <span class="switch-slider"></span>
+                        </label>
+                        <span class="toggle-caption">BOT ENGINE</span>
+                    </div>
+                </div>
+
+                <div class="protection-matrix">
+                    <div class="protection-badge secure"><i class="fa-solid fa-cloud-shield"></i> Cloud Shield Active</div>
+                    <div class="protection-badge processing"><i class="fa-solid fa-network-wired"></i> 10+ Sync Stream</div>
+                </div>
+
+                <div class="ai-console-logway" id="ai-terminal-console-logs">
+                    <div class="console-line system">
+                        <span class="timestamp">[SYS INIT]</span> Deep learning engine online. One-click global execution pipeline initialized.
+                    </div>
+                </div>
+
+                <div class="ai-interaction-dock">
+                    <input type="text" id="ai-user-input-field" placeholder="Modify cloud automation metrics directly via text instructions...">
+                    <button id="ai-dispatch-button"><i class="fa-solid fa-bolt"></i></button>
+                </div>
+            </section>
+
+        </div>
+
+        <nav class="metanex-nav-bar">
+            <div class="nav-button active" data-target="quotes">
+                <i class="fa-solid fa-arrow-up-down-left-right"></i>
+                <span>Quotes</span>
+            </div>
+            <div class="nav-button" data-target="charts">
+                <i class="fa-solid fa-chart-candlestick"></i>
+                <span>Charts</span>
+            </div>
+            <div class="nav-button" data-target="trade">
+                <i class="fa-solid fa-chart-line"></i>
+                <span>Trade</span>
+            </div>
+            <div class="nav-button" data-target="history">
+                <i class="fa-solid fa-clock-rotate-left"></i>
+                <span>History</span>
+            </div>
+            <div class="nav-button special-ai-glow" data-target="ai">
+                <i class="fa-solid fa-robot"></i>
+                <span>MetaNex AI</span>
+            </div>
+        </nav>
+
+    </div>
+
+    <script>
+        const brokerDataConfig = {
+            exness: {
+                spreadModifier: 0.9,
+                pairs: ['EURUSDm', 'GBPUSDm', 'USDJPYm', 'XAUUSDm', 'BTCUSDm', 'USDCADm', 'AUDUSDm', 'EURJPYm', 'NZDUSDm', 'GBPCHFm']
+            },
+            xm: {
+                spreadModifier: 1.5,
+                pairs: ['EURUSD#', 'GBPUSD#', 'USDJPY#', 'GOLD#', 'OIL#', 'AUDUSD#', 'NZDUSD#', 'GBPJPY#', 'CADJPY#', 'US30#']
+            },
+            fbs: {
+                spreadModifier: 2.0,
+                pairs: ['EURUSD-ECN', 'GBPUSD-ECN', 'USDJPY-ECN', 'AUDUSD-ECN', 'USDCAD-ECN', 'EURGBP-ECN', 'CHFJPY-ECN', 'XAUUSD-ECN']
+            }
+        };
+
+        const engineState = {
+            currentBroker: 'exness',
+            balance: 100000.00,
+            equity: 100000.00,
+            margin: 100000.00,
+            activeTicker: 'EURUSDm',
+            aiAutomationActive: true, // Master Switch state controller
+            renderPatternsActive: true,
+            positionsPool: [],
+            historyPool: [],
+            marketFeeds: {}
+        };
+
+        document.addEventListener("DOMContentLoaded", () => {
+            rebootBrokerFeeds('exness');
+            bindNavigationTriggers();
+            initializeChartViewport();
+            bindAISystemControls();
+            setupSideToolbarInteractions();
+
+            // High Frequency Update Engine Loops: Triggers all chart maps and account analytics every 350ms
+            setInterval(() => {
+                streamMarketTicks();
+                if (engineState.aiAutomationActive) {
+                    processNeuralCoreDecisions();
+                }
+                computeTerminalFinancials();
+            }, 350);
+
+            window.addEventListener("resize", () => {
+                if (document.getElementById("charts-view").classList.contains("active")) {
+                    paintChartCanvas();
+                }
+            });
+
+            document.getElementById("chart-pair-self-selector").addEventListener("change", (e) => {
+                engineState.activeTicker = e.target.value;
+                paintChartCanvas();
+            });
+
+            document.getElementById("broker-matrix-selector").addEventListener("change", (e) => {
+                rebootBrokerFeeds(e.target.value);
+            });
+        });
+
+        function rebootBrokerFeeds(brokerKey) {
+            engineState.currentBroker = brokerKey;
+            const config = brokerDataConfig[brokerKey];
+            engineState.marketFeeds = {};
+            engineState.positionsPool = [];
+
+            config.pairs.forEach((pair, idx) => {
+                let defaultBid = pair.includes("JPY") ? 159.40 : ((pair.includes("XAU") || pair.includes("GOLD")) ? 2355.00 : (pair.includes("BTC") ? 68400.00 : (pair.includes("US30") ? 39200.00 : 1.0850)));
+                let digits = (pair.includes("JPY") || pair.includes("XAU") || pair.includes("GOLD")) ? 2 : (pair.includes("BTC") || pair.includes("US30")) ? 1 : 4;
+                
+                engineState.marketFeeds[pair] = {
+                    bid: defaultBid,
+                    ask: defaultBid + (0.00015 * config.spreadModifier * (idx + 1)),
+                    digits: digits,
+                    low: defaultBid * 0.995,
+                    high: defaultBid * 1.005,
+                    candles: []
+                };
+
+                let price = defaultBid;
+                for (let i = 0; i < 40; i++) {
+                    let variance = (Math.random() - 0.5) * (price * 0.0008);
+                    let open = price;
+                    let close = price + variance;
+                    engineState.marketFeeds[pair].candles.push({ open, high: Math.max(open, close) + (price * 0.0002), low: Math.min(open, close) - (price * 0.0002), close });
+                    price = close;
+                }
+            });
+
+            engineState.activeTicker = config.pairs[0];
+
+            const pairDropdown = document.getElementById("chart-pair-self-selector");
+            pairDropdown.innerHTML = "";
+            config.pairs.forEach(p => {
+                let opt = document.createElement("option");
+                opt.value = p; opt.innerText = p;
+                pairDropdown.appendChild(opt);
+            });
+            pairDropdown.value = engineState.activeTicker;
+
+            generateQuotesDisplay();
+            paintChartCanvas();
+            postToNeuralConsole("system", `Broker profile shifted to **${brokerKey.toUpperCase()}**. Liquidity parameters and arrays successfully synchronized.`);
+        }
+
+        function bindNavigationTriggers() {
+            const buttons = document.querySelectorAll(".metanex-nav-bar .nav-button");
+            const panels = document.querySelectorAll(".panel-view");
+
+            buttons.forEach(btn => {
+                btn.addEventListener("click", () => {
+                    buttons.forEach(b => b.classList.remove("active"));
+                    panels.forEach(p => p.classList.remove("active"));
+                    btn.classList.add("active");
+                    
+                    const viewTarget = btn.getAttribute("data-target");
+                    document.getElementById(`${viewTarget}-view`).classList.add("active");
+                    if (viewTarget === "charts") {
+                        setTimeout(paintChartCanvas, 30);
+                    }
+                });
+            });
+        }
+
+        function setupSideToolbarInteractions() {
+            const toolbarButtons = document.querySelectorAll(".chart-side-toolbar .tool-btn:not(.pattern-toggle)");
+            toolbarButtons.forEach(btn => {
+                btn.addEventListener("click", () => {
+                    toolbarButtons.forEach(b => b.classList.remove("active"));
+                    btn.classList.add("active");
+                });
+            });
+
+            document.getElementById("toggle-neural-patterns").addEventListener("click", function() {
+                engineState.renderPatternsActive = !engineState.renderPatternsActive;
+                this.classList.toggle("active", engineState.renderPatternsActive);
+                paintChartCanvas();
+            });
+        }
+
+        function generateQuotesDisplay() {
+            const container = document.getElementById("quotes-injection-point");
+            container.innerHTML = "";
+
+            Object.keys(engineState.marketFeeds).forEach(ticker => {
+                const item = engineState.marketFeeds[ticker];
+                const row = document.createElement("div");
+                row.className = "quote-panel-row";
+                row.innerHTML = `
+                    <div class="ticker-identity">
+                        <h4>${ticker}</h4>
+                        <div class="time-tag">Feed Live</div>
+                    </div>
+                    <div class="market-price-wells">
+                        <div class="price-well-block">
+                            <div class="well-lbl">Bid</div>
+                            <div class="price-well-value" id="bid-render-${ticker}">${item.bid.toFixed(item.digits)}</div>
+                        </div>
+                        <div class="price-well-block">
+                            <div class="well-lbl">Ask</div>
+                            <div class="price-well-value" id="ask-render-${ticker}">${item.ask.toFixed(item.digits)}</div>
+                        </div>
+                    </div>
+                `;
+                row.addEventListener("click", () => {
+                    engineState.activeTicker = ticker;
+                    document.getElementById("chart-pair-self-selector").value = ticker;
+                    document.querySelector('[data-target="charts"]').click();
+                });
+                container.appendChild(row);
+            });
+        }
+
+        function streamMarketTicks() {
+            Object.keys(engineState.marketFeeds).forEach(ticker => {
+                const data = engineState.marketFeeds[ticker];
+                if (!data) return;
+                const varianceFactor = ticker.includes("JPY") ? 0.05 : (ticker.includes("BTC") ? 15.0 : (ticker.includes("US30") ? 8.0 : 0.00018));
+                const direction = Math.random() > 0.49 ? 1 : -1;
+                const delta = Math.random() * varianceFactor * direction;
+
+                data.bid += delta;
+                data.ask += delta;
+
+                if (data.bid > data.high) data.high = data.bid;
+                if (data.bid < data.low) data.low = data.bid;
+
+                const bidTarget = document.getElementById(`bid-render-${ticker}`);
+                const askTarget = document.getElementById(`ask-render-${ticker}`);
+                if (bidTarget && askTarget) {
+                    bidTarget.innerText = data.bid.toFixed(data.digits);
+                    askTarget.innerText = data.ask.toFixed(data.digits);
+                    bidTarget.className = `price-well-value ${direction > 0 ? 'climbing' : 'falling'}`;
+                    askTarget.className = `price-well-value ${direction > 0 ? 'climbing' : 'falling'}`;
+                }
+
+                if (data.candles.length > 0) {
+                    let lastCandle = data.candles[data.candles.length - 1];
+                    lastCandle.close = data.bid;
+                    if (data.bid > lastCandle.high) lastCandle.high = data.bid;
+                    if (data.bid < lastCandle.low) lastCandle.low = data.bid;
+                }
+            });
+
+            if (document.getElementById("charts-view").classList.contains("active")) {
+                paintChartCanvas();
+            }
+        }
+
+        let canvasElement, canvasContext;
+        function initializeChartViewport() {
+            canvasElement = document.getElementById("primaryTradingChart");
+            canvasContext = canvasElement.getContext("2d");
+        }
+
+        function paintChartCanvas() {
+            const parent = document.getElementById("canvas-resize-parent");
+            if (!parent) return;
+            
+            canvasElement.width = parent.clientWidth;
+            canvasElement.height = parent.clientHeight;
+
+            const dataMatrix = engineState.marketFeeds[engineState.activeTicker];
+            if (!dataMatrix) return;
+            const candles = dataMatrix.candles;
+
+            canvasContext.clearRect(0, 0, canvasElement.width, canvasElement.height);
+
+            const currentSpreadPoints = Math.round(Math.abs(dataMatrix.ask - dataMatrix.bid) * Math.pow(10, dataMatrix.digits === 1 ? 2 : dataMatrix.digits));
+            document.getElementById("chart-floating-spread").innerText = currentSpreadPoints;
+
+            canvasContext.strokeStyle = "#121319";
+            canvasContext.lineWidth = 1;
+            for (let i = 0; i < canvasElement.width; i += 38) {
+                canvasContext.beginPath(); canvasContext.moveTo(i, 0); canvasContext.lineTo(i, canvasElement.height); canvasContext.stroke();
+            }
+            for (let j = 0; j < canvasElement.height; j += 38) {
+                canvasContext.beginPath(); canvasContext.moveTo(0, j); canvasContext.lineTo(canvasElement.width, j); canvasContext.stroke();
+            }
+
+            const paddingOffset = 64;
+            const drawingWidth = canvasElement.width - paddingOffset;
+            const windowCount = 22;
+            const nodeWidth = Math.floor(drawingWidth / windowCount) - 4;
+            const focalSet = candles.slice(-windowCount);
+
+            let absoluteCeiling = Math.max(...focalSet.map(c => c.high));
+            let absoluteFloor = Math.min(...focalSet.map(c => c.low));
+            let spreadDelta = absoluteCeiling - absoluteFloor || 1;
+
+            canvasContext.fillStyle = "#585966";
+            canvasContext.font = "10px monospace";
+            canvasContext.fillText(absoluteCeiling.toFixed(dataMatrix.digits), drawingWidth + 6, 18);
+            canvasContext.fillText(absoluteFloor.toFixed(dataMatrix.digits), drawingWidth + 6, canvasElement.height - 12);
+
+            focalSet.forEach((candle, idx) => {
+                const xCoord = (idx * (nodeWidth + 4)) + 6;
+                const scaleY = (val) => canvasElement.height - ((val - absoluteFloor) / spreadDelta * (canvasElement.height - 50) + 25);
+
+                const yOpen = scaleY(candle.open);
+                const yClose = scaleY(candle.close);
+                const yHigh = scaleY(candle.high);
+                const yLow = scaleY(candle.low);
+
+                const bull = candle.close >= candle.open;
+                const colorHex = bull ? "#00e676" : "#ff3b30";
+
+                canvasContext.strokeStyle = colorHex;
+                canvasContext.fillStyle = colorHex;
+
+                canvasContext.beginPath();
+                canvasContext.moveTo(xCoord + nodeWidth / 2, yHigh);
+                canvasContext.lineTo(xCoord + nodeWidth / 2, yLow);
+                canvasContext.stroke();
+
+                canvasContext.fillRect(xCoord, Math.min(yOpen, yClose), nodeWidth, Math.max(2, Math.abs(yOpen - yClose)));
+            });
+
+            if (engineState.renderPatternsActive) {
+                executePatternExtractionMath(focalSet);
+            } else {
+                document.getElementById("ai-pattern-readout").innerHTML = `<i class="fa-solid fa-eye-slash"></i> Overlays Off`;
+            }
+        }
+
+        function executePatternExtractionMath(focalSet) {
+            const feedbackField = document.getElementById("ai-pattern-readout");
+            if (focalSet.length < 3) return;
+
+            const last = focalSet[focalSet.length - 1];
+            const prev = focalSet[focalSet.length - 2];
+            let structureText = "ANALYZING MARGIN CHANNELS";
+            let drawVector = false;
+
+            if (last.close > prev.open && (last.close - last.open) > (prev.open - prev.close)) {
+                structureText = "BULLISH ENGULFING BLOCK";
+                drawVector = true;
+            } else if (last.close < last.open && prev.close < prev.open) {
+                structureText = "DOWNWARD TREND EXHAUSTION";
+            }
+
+            feedbackField.innerHTML = `<i class="fa-solid fa-wand-magic-sparkles"></i> ${structureText}`;
+
+            if (drawVector) {
+                canvasContext.strokeStyle = "rgba(0, 118, 255, 0.7)";
+                canvasContext.lineWidth = 1.5;
+                canvasContext.setLineDash([5, 5]);
+                canvasContext.beginPath();
+                canvasContext.moveTo(10, canvasElement.height - 30);
+                canvasContext.lineTo(canvasElement.width - 80, canvasElement.height - 120);
+                canvasContext.stroke();
+                canvasContext.setLineDash([]);
+            }
+        }
+
+        function computeTerminalFinancials() {
+            let floatPnL = 0;
+            engineState.positionsPool.forEach(pos => {
+                const currentFeed = engineState.marketFeeds[pos.pair];
+                if (!currentFeed) return;
+                const currentQuote = currentFeed.bid;
+                pos.profit = pos.type === "BUY" ? (currentQuote - pos.entryPrice) * pos.volume * 10000 : (pos.entryPrice - currentQuote) * pos.volume * 10000;
+                floatPnL += pos.profit;
+            });
+
+            engineState.equity = engineState.balance + floatPnL;
+            engineState.margin = engineState.equity * 0.95;
+            const marginLevelPercent = ((engineState.equity / (engineState.balance * 0.08)) * 100);
+
+            document.getElementById("ledger-balance").innerText = `$${engineState.balance.toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
+            document.getElementById("ledger-equity").innerText = `$${engineState.equity.toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
+            document.getElementById("ledger-margin").innerText = `$${engineState.margin.toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
+            document.getElementById("ledger-margin-level").innerText = `${marginLevelPercent.toFixed(2)}%`;
+
+            const statusEl = document.getElementById("ledger-floating-pnl");
+            statusEl.innerText = `${floatPnL >= 0 ? '+$' : '-$'}${Math.abs(floatPnL).toFixed(2)}`;
+            statusEl.className = `val dynamic-pnl ${floatPnL > 0 ? 'Bullish' : (floatPnL < 0 ? 'Bearish' : 'Neutral')}`;
+
+            syncPositionsViewDOM();
+        }
+
+        function syncPositionsViewDOM() {
+            const slot = document.getElementById("positions-injection-point");
+            slot.innerHTML = "";
+
+            if (engineState.positionsPool.length === 0) {
+                slot.innerHTML = `<div class="terminal-empty-state"><p>Zero exposure records registered.</p></div>`;
+                return;
+            }
+
+            engineState.positionsPool.forEach((pos, idx) => {
+                const feed = engineState.marketFeeds[pos.pair];
+                const currentPrice = feed ? feed.bid : pos.entryPrice;
+                const decimalPlaces = feed ? feed.digits : 4;
+                const row = document.createElement("div");
+                row.className = "contract-position-card";
+                row.innerHTML = `
+                    <div>
+                        <strong>${pos.pair}</strong>
+                        <div style="font-size:11px; margin-top:2px;">
+                            <span class="direction-tag ${pos.type.toLowerCase()}">${pos.type}</span> Lot: ${pos.volume.toFixed(2)}
+                        </div>
+                    </div>
+                    <div style="text-align:right;">
+                        <span class="float-pnl ${pos.profit >= 0 ? 'profit' : 'loss'}">${pos.profit >= 0 ? '+' : ''}${pos.profit.toFixed(2)}</span>
+                        <div style="font-size:10px; color:#848694; margin-top:2px;">${pos.entryPrice.toFixed(decimalPlaces)} → ${currentPrice.toFixed(decimalPlaces)}</div>
+                    </div>
+                `;
+                row.addEventListener("click", () => {
+                    if (confirm("Terminate execution contract position manually?")) {
+                        engineState.balance += pos.profit;
+                        engineState.historyPool.push({ ...pos, settleTime: new Date().toLocaleTimeString(), payout: pos.profit });
+                        engineState.positionsPool.splice(idx, 1);
+                        computeTerminalFinancials();
+                        syncHistoryViewDOM();
+                    }
+                });
+                slot.appendChild(row);
+            });
+        }
+
+        function syncHistoryViewDOM() {
+            const dock = document.getElementById("history-injection-point");
+            if (engineState.historyPool.length === 0) return;
+            dock.innerHTML = "";
+            engineState.historyPool.forEach(r => {
+                const l = document.createElement("div");
+                l.className = "contract-position-card";
+                l.innerHTML = `<div><strong>${r.pair}</strong><br><small class="direction-tag ${r.type.toLowerCase()}">${r.type}</small></div><div style="text-align:right;"><span class="float-pnl ${r.payout >= 0 ? 'profit' : 'loss'}">${r.payout >= 0 ? '+' : ''}${r.payout.toFixed(2)}</span><br><small>${r.settleTime}</small></div>`;
+                dock.appendChild(l);
+            });
+        }
+
+        function processNeuralCoreDecisions() {
+            const pairs = Object.keys(engineState.marketFeeds);
+            if (pairs.length === 0) return;
+
+            if (engineState.positionsPool.length < 10 && Math.random() > 0.94) {
+                const pickedPair = pairs[Math.floor(Math.random() * pairs.length)];
+                const feed = engineState.marketFeeds[pickedPair];
+                if (feed) {
+                    const type = Math.random() > 0.5 ? "BUY" : "SELL";
+                    const volume = 1.5 + Math.random() * 4.5;
+
+                    engineState.positionsPool.push({
+                        pair: pickedPair, type, volume, entryPrice: feed.bid, profit: 0, sl: type === "BUY" ? feed.bid * 0.996 : feed.bid * 1.004, tp: type === "BUY" ? feed.bid * 1.01 : feed.bid * 0.99
+                    });
+                    postToNeuralConsole("win", `[AI EXECUTOR] Position opened automatically on: **${pickedPair}** (${type}). Protection metrics synchronized.`);
+                }
+            }
+
+            for (let i = engineState.positionsPool.length - 1; i >= 0; i--) {
+                const pos = engineState.positionsPool[i];
+                if (pos.profit <= -250.00 || pos.profit >= 750.00) {
+                    engineState.balance += pos.profit;
+                    engineState.historyPool.push({ ...pos, settleTime: new Date().toLocaleTimeString(), payout: pos.profit });
+                    postToNeuralConsole(pos.profit > 0 ? "win" : "alert", `[SAFEGUARD] Evasion limits activated. Closed node **${pos.pair}**. Return: $${pos.profit.toFixed(2)}.`);
+                    engineState.positionsPool.splice(i, 1);
+                    syncHistoryViewDOM();
+                }
+            }
+        }
+
+        function bindAISystemControls() {
+            // One-Click universal tracking shutdown
+            document.getElementById("ai-master-toggle").addEventListener("change", (e) => {
+                engineState.aiAutomationActive = e.target.checked;
+                if (!engineState.aiAutomationActive) {
+                    engineState.positionsPool.forEach(pos => {
+                        engineState.balance += pos.profit;
+                        engineState.historyPool.push({ ...pos, settleTime: new Date().toLocaleTimeString(), payout: pos.profit });
+                    });
+                    engineState.positionsPool = [];
+                    syncHistoryViewDOM();
+                    postToNeuralConsole("alert", "GLOBAL SUSPENSION: Master bot switch turned off. All positions closed out smoothly.");
+                } else {
+                    postToNeuralConsole("system", "GLOBAL ACTIVATION: Neural network engine engaged successfully in one click.");
+                }
+            });
+
+            const button = document.getElementById("ai-dispatch-button");
+            const field = document.getElementById("ai-user-input-field");
+
+            const sendInput = () => {
+                const txt = field.value.trim();
+                if (!txt) return;
+                appendConsoleBubble(txt, "user");
+                field.value = "";
+                setTimeout(() => postToNeuralConsole("system", "Parameters locked inside framework cluster successfully."), 300);
+            };
+
+            button.addEventListener("click", sendInput);
+            field.addEventListener("keypress", (e) => { if (e.key === "Enter") sendInput(); });
+        }
+
+        function appendConsoleBubble(text, cl) {
+            const t = document.getElementById("ai-terminal-console-logs");
+            if (!t) return;
+            const e = document.createElement("div");
+            e.className = `console-line ${cl}`;
+            e.innerHTML = `<span class="timestamp">[${new Date().toLocaleTimeString()}]</span> ${text}`;
+            t.appendChild(e);
+            t.scrollTop = t.scrollHeight;
+        }
+
+        function postToNeuralConsole(type, msg) { appendConsoleBubble(msg, type); }
+    </script>
+</body>
+</html>
